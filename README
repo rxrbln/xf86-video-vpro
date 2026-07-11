@@ -1,0 +1,24 @@
+xf86-video-vpro - SGI Odyssey (VPro) video driver for the Xorg X server
+
+The Odyssey (a.k.a. VPro, "Buzz"/"PB&J") is the graphics board of the SGI
+Octane2 / late Octane (IP30) workstations.  Unlike older SGI graphics it
+exposes no CPU-visible linear framebuffer: it is a dual-chip OpenGL engine
+programmed entirely through a command FIFO.
+
+This driver therefore:
+
+  * relies on the kernel `odyssey' fbdev driver to program the panel timing
+    and to expose the register window via /dev/fbN (mmap offset 0);
+  * renders the desktop into a host-side shadow framebuffer using the
+    normal Xorg fb layer;
+  * uploads the dirty regions of that shadow into the board's VRAM through
+    the command FIFO (glDrawPixels-style PIO blit) via the ShadowFB hooks.
+
+The low-level command-FIFO engine (hardware bring-up, solid rectangles and
+lines, pixel upload and screen-to-screen copy) lives in src/vpro_accel.c and
+was ported from the Linux odyssey fbdev driver and the IRIX Odyssey PROM
+textport code.
+
+Only the fixed 1280x1024 24bpp (packed 32bpp) TrueColor mode is supported.
+
+See XF86Config.vpro for an example configuration.

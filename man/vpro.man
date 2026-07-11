@@ -1,0 +1,43 @@
+.\" shorthand for double quote that works everywhere.
+.ds q \N'34'
+.TH VPRO __drivermansuffix__ __vendorversion__
+.SH NAME
+vpro \- SGI Odyssey (VPro) video driver
+.SH SYNOPSIS
+.nf
+.B "Section \*qDevice\*q"
+.BI "  Identifier \*q" devname \*q
+.B "  Driver \*qvpro\*q"
+\ \ ...
+.B EndSection
+.fi
+.SH DESCRIPTION
+.B vpro
+is an __xservername__ driver for the SGI Odyssey (VPro) graphics board
+found in SGI Octane (IP30) workstations.
+.PP
+The Odyssey has no CPU-visible linear framebuffer; it is a dual-chip
+OpenGL engine driven entirely through a command FIFO.  The driver renders
+into a host-side shadow framebuffer and uploads dirty regions to the board
+through the command FIFO.  It relies on the kernel
+.B odyssey
+fbdev driver to have set up the panel timing and to provide the
+.B /dev/fbN
+register mapping.
+.SH SUPPORTED HARDWARE
+.B vpro
+supports the SGI Odyssey / VPro at its fixed 1280x1024 resolution in
+24-bit TrueColor (stored as 32bpp).
+.SH CONFIGURATION DETAILS
+The
+.B BusID
+option selects which
+.B /dev/fbN
+device (and thus which board) to drive; it defaults to 0.
+.SH "SEE ALSO"
+__xservername__(__appmansuffix__), xorg.conf(__filemansuffix__),
+Xserver(__appmansuffix__), X(__miscmansuffix__)
+.SH AUTHORS
+René Rebe.  Based on the xf86-video-impact driver by Peter Fuerst and on
+the Linux odyssey fbdev driver by Stanislaw Skowronek, Johannes
+Dickgreber, Joshua Kinard and René Rebe.
