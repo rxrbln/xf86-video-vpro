@@ -418,6 +418,12 @@ VproScreenInit(SCREEN_INIT_ARGS_DECL)
 	if (!miDCInitialize(pScreen, xf86GetPointerScreenFuncs()))
 		goto out_fail;
 
+	/* Set up the hardware cursor; on failure keep the software cursor. */
+	if (!VproHWCursorInit(pScreen))
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "hardware cursor initialization failed,"
+			   " using software cursor\n");
+
 	if (!miCreateDefColormap(pScreen))
 		goto out_fail;
 	if (!xf86HandleColormaps(pScreen, 256, 8, VproLoadPalette, 0,
@@ -452,6 +458,15 @@ VproModeInit(ScrnInfoPtr pScrn, DisplayModePtr mode)
 
 	pScrn->vtSema = TRUE;
 
+	/* Program the DBE video timing generator / DAC for this mode
+	 * (mirrors the IRIX PROM odsyLoadTimingTable sequence). */
+	if (!VproSetMode(pScrn, mode)) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "vpro: hardware mode initialization failed\n");
+		return FALSE;
+	}
+
+	/* Bring up the Buzz/PB&J command engine and clear the screen. */
 	vpro_hwinit(pVpro->mmio);
 	vpro_rect(pVpro->mmio, 0, 0, VPRO_FIXED_W_SCRN, VPRO_FIXED_H_SCRN,
 		  0x000000, VPRO_LO_COPY);
@@ -486,6 +501,11 @@ VproCloseScreen(CLOSE_SCREEN_ARGS_DECL)
 {
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	VproPtr pVpro = VPROPTR(pScrn);
+
+	if (pVpro->CursorInfoRec) {
+		xf86DestroyCursorInfoRec(pVpro->CursorInfoRec);
+		pVpro->CursorInfoRec = NULL;
+	}
 
 	VproFreeShadow(pScrn);
 	VproUnmapRegs(pScrn);

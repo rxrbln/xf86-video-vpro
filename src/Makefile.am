@@ -15,4 +15,6 @@ vpro_drv_la_SOURCES = \
          compat-api.h \
          vpro_driver.c \
          vpro_accel.c \
+         vpro_modeset.c \
+         vpro_cursor.c \
          vpro_cmap.c
