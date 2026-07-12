@@ -96,6 +96,77 @@
 #define VPRO_PRIM_QUADS		0x00000007
 
 /*
+ * DBE (Display Back End) register addresses.
+ *
+ * DBE registers -- the video timing generator (VTG), the internal DAC, the
+ * datapath/state-machine and the scanout DMA geometry -- are programmed by
+ * pushing packets into the DFIFO.  A single-register write is
+ *     DFIFO_D = ((CARD64)(0x30000001 | (reg << 14)) << 32) | value;
+ * which is exactly what vpro_dfifo_write() below emits (and what the kernel
+ * odyssey_dfifo_write() uses for cmap/gamma).
+ *
+ * These addresses were recovered by disassembling the IP30 (Octane) PROM
+ * routines odsyLoadTimingTable() and odsyInitDBE().  cmap_clut/gamma match
+ * the values already used by the Linux driver, and cursor_control (0x2581)
+ * cross-checks against odyssey_initpbjvc() which clears exactly that reg.
+ */
+#define VPRO_DBE_GAMMA			0x1a00	/* gamma ramp base    */
+#define VPRO_DBE_VTG_FRAMETABLE		0x2400	/* VTG table stream port */
+#define VPRO_DBE_VTG_CONTROL		0x2481
+#define VPRO_DBE_VTG_INITIALSTATE	0x2482
+#define VPRO_DBE_VTG_ENABLE		0x2483
+#define VPRO_DBE_CURSOR_CONTROL		0x2581
+#define VPRO_DBE_PBJ_DPATH_CTL		0x2600
+#define VPRO_DBE_SM_CONFIG		0x2680
+#define VPRO_DBE_DAC_CONTROL		0x26c0
+#define VPRO_DBE_PBJ_HIF_CONTROL	0x2700
+#define VPRO_DBE_GEN_LPFD		0x2780	/* genlock block (12 regs) */
+#define VPRO_DBE_DMA_WIDTHPIXELS	0x2802
+#define VPRO_DBE_DMA_HEIGHTPIXELS	0x2803
+#define VPRO_DBE_DMA_INTERLACEMODE	0x2804
+#define VPRO_DBE_DMA_DUALHEADMODE	0x2805
+#define VPRO_DBE_DMA_FLDSEQMODE		0x2806
+#define VPRO_DBE_CMAP_CLUT		0x2900	/* colour LUT base    */
+#define VPRO_DBE_XMAP_CONFIG		0x2929
+#define VPRO_DBE_BUZZ_HIF_CONFIG	0x2b00
+
+/* VTG_control bits */
+#define VPRO_VTG_CONTROL_RESET		0x00000001
+#define VPRO_VTG_CONTROL_RUN		0x000001b8	/* |= before start */
+
+/*
+ * Hardware cursor DBE registers (recovered from the IP30 fprom
+ * odsy_init_cursor / the cursor position routine, cross-checked against the
+ * IRIX standalone odsy_init_cursor() in odsy_tport.c).
+ *
+ * The Odyssey cursor is 32x32.  The glyph is 2 bits/pixel (index into the
+ * cursor LUT), the alpha plane is 1 bit/pixel (coverage), and the LUT holds
+ * the colours.  Glyph/alpha/LUT are pushed as multi-word DBE packets; the
+ * position and control are single-register writes.
+ */
+#define VPRO_DBE_CURSOR_GLYPH		0x2500	/* 64 words (32x32, 2bpp)  */
+#define VPRO_DBE_CURSOR_XY		0x2580	/* (x<<16)|(y&0xffff)      */
+/*      VPRO_DBE_CURSOR_CONTROL		0x2581 -- defined above          */
+#define VPRO_DBE_CURSOR_LUT		0x2590	/* 15 colour entries       */
+#define VPRO_DBE_CURSOR_ALPHA		0x25c0	/* 32 words (32x32, 1bpp)  */
+
+#define VPRO_CURSOR_SIZE		32
+#define VPRO_CURSOR_GLYPH_WORDS		64	/* 2 words/row * 32 rows   */
+#define VPRO_CURSOR_ALPHA_WORDS		32	/* 1 word/row  * 32 rows   */
+#define VPRO_CURSOR_LUT_ENTRIES		15
+
+/* cursor_control: bit0 = delay_enable, bit1 = enable. */
+#define VPRO_CURSOR_CONTROL_ON		0x00000003
+#define VPRO_CURSOR_CONTROL_OFF		0x00000000
+
+/*
+ * DBE packet header for a write of `count` words to DBE register `reg`
+ * (count == 1 for a single register; see vpro_dfifo_write()).  Recovered
+ * form: header = 0x30000000 | (reg << 14) | count.
+ */
+#define VPRO_DBE_HDR(reg, count)	(0x30000000u | ((reg) << 14) | (count))
+
+/*
  * Poll helpers.  Mirror odyssey_wait_cfifo()/odyssey_wait_dfifo() from the
  * kernel header <video/odyssey.h>.
  */

@@ -58,6 +58,9 @@ typedef struct {
 	 * per-pixel colour words the CFIFO drawpixels path consumes. */
 	unsigned pseudo_palette[256];
 
+	/* hardware cursor */
+	xf86CursorInfoPtr CursorInfoRec;
+
 	/* wrapped functions */
 	CloseScreenProcPtr CloseScreen;
 
@@ -101,5 +104,11 @@ void vpro_copyarea(unsigned long mmio, int sx, int sy,
 
 /* ShadowFB refresh entry point (registered with ShadowFBInit). */
 void VproRefreshArea(ScrnInfoPtr pScrn, int num, BoxPtr pbox);
+
+/* vpro_modeset.c -- program the DBE video timing generator / DAC. */
+Bool VproSetMode(ScrnInfoPtr pScrn, DisplayModePtr mode);
+
+/* vpro_cursor.c -- 32x32 DBE hardware cursor. */
+Bool VproHWCursorInit(ScreenPtr pScreen);
 
 #endif /* __VPRO_H__ */
