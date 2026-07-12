@@ -166,16 +166,34 @@ VproSetCursorColors(ScrnInfoPtr pScrn, int bg, int fg)
 }
 
 /*
+ * Read the bit for pixel (x,y) from an X cursor bitmap (source or mask).
+ */
+static __inline__ int
+vpro_bitmap_bit(const unsigned char *base, int stride, int x, int y)
+{
+	const unsigned char *b = base + y * stride + (x >> 3);
+
+	return (*b >> (7 - (x & 7))) & 1;
+}
+
+/*
  * Convert an X source/mask cursor into the hardware glyph + alpha planes.
- * The returned blob is [ glyph (64 words) | alpha (32 words) ]; it is handed
+ * The returned blob is [ glyph (128 words) | alpha (64 words) ]; it is handed
  * back to us by the server in VproLoadCursorImage().
+ *
+ * glyph = 4 bits/pixel (8 pixels per word, 4 words per row): LUT index
+ *         1 = foreground, 2 = background, 0 = transparent.
+ * alpha = 2 bits/pixel (16 pixels per word, 2 words per row): 3 = opaque,
+ *         0 = transparent.
+ * Pixel 0 (leftmost) occupies the least-significant field of each word,
+ * matching the on-wire arrow data in the IRIX odsy_init_cursor().
  */
 static unsigned char *
 VproRealizeCursor(xf86CursorInfoPtr infoPtr, CursorPtr pCurs)
 {
 	CARD32 *mem, *glyph, *alpha;
-	const CARD32 *src, *msk;
-	int y, x, h;
+	const unsigned char *src, *msk;
+	int y, x, w, h, stride;
 
 	mem = calloc(VPRO_CURSOR_GLYPH_WORDS + VPRO_CURSOR_ALPHA_WORDS,
 		     sizeof(CARD32));
@@ -185,35 +203,32 @@ VproRealizeCursor(xf86CursorInfoPtr infoPtr, CursorPtr pCurs)
 	glyph = mem;
 	alpha = mem + VPRO_CURSOR_GLYPH_WORDS;
 
-	/* One 32-bit word per scanline (width <= 32). */
-	src = (const CARD32 *)pCurs->bits->source;
-	msk = (const CARD32 *)pCurs->bits->mask;
+	src = (const unsigned char *)pCurs->bits->source;
+	msk = (const unsigned char *)pCurs->bits->mask;
 
+	w = pCurs->bits->width;
 	h = pCurs->bits->height;
+	if (w > VPRO_CURSOR_SIZE)
+		w = VPRO_CURSOR_SIZE;
 	if (h > VPRO_CURSOR_SIZE)
 		h = VPRO_CURSOR_SIZE;
+	stride = BitmapBytePad(pCurs->bits->width);
 
 	for (y = 0; y < h; y++) {
-		CARD32 s = src[y], m = msk[y];
-		CARD32 g0 = 0, g1 = 0;
+		for (x = 0; x < w; x++) {
+			CARD32 idx;
 
-		/* alpha plane: one coverage bit per pixel (bit 0 = leftmost). */
-		alpha[y] = m;
+			if (!vpro_bitmap_bit(msk, stride, x, y))
+				continue;	/* transparent */
 
-		/* glyph plane: 2 bits per pixel, 16 pixels per word. */
-		for (x = 0; x < VPRO_CURSOR_SIZE; x++) {
-			CARD32 idx = 0;
+			/* alpha: 2bpp, 16 px/word -> opaque (3). */
+			alpha[y * 2 + (x >> 4)] |=
+				(CARD32)3 << ((x & 15) * 2);
 
-			if ((m >> x) & 1)
-				idx = ((s >> x) & 1) ? 1 : 2;
-
-			if (x < 16)
-				g0 |= idx << (x * 2);
-			else
-				g1 |= idx << ((x - 16) * 2);
+			/* glyph: 4bpp, 8 px/word -> fg (1) or bg (2). */
+			idx = vpro_bitmap_bit(src, stride, x, y) ? 1 : 2;
+			glyph[y * 4 + (x >> 3)] |= idx << ((x & 7) * 4);
 		}
-		glyph[y * 2] = g0;
-		glyph[y * 2 + 1] = g1;
 	}
 
 	return (unsigned char *)mem;

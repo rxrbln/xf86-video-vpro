@@ -144,15 +144,22 @@
  * the colours.  Glyph/alpha/LUT are pushed as multi-word DBE packets; the
  * position and control are single-register writes.
  */
-#define VPRO_DBE_CURSOR_GLYPH		0x2500	/* 64 words (32x32, 2bpp)  */
+/*
+ * The glyph is 4 bits per pixel (index into the 15-entry LUT; index 15
+ * inverts the covered pixel) and the alpha plane is 2 bits per pixel
+ * (coverage: 3 = opaque, 0 = transparent).  Both were confirmed from the
+ * fprom stream lengths (glyph 128 words, alpha 64 words) and the standalone
+ * odsy_init_cursor() arrow data in odsy_tport.c.
+ */
+#define VPRO_DBE_CURSOR_GLYPH		0x2500	/* 128 words (32x32, 4bpp) */
 #define VPRO_DBE_CURSOR_XY		0x2580	/* (x<<16)|(y&0xffff)      */
 /*      VPRO_DBE_CURSOR_CONTROL		0x2581 -- defined above          */
 #define VPRO_DBE_CURSOR_LUT		0x2590	/* 15 colour entries       */
-#define VPRO_DBE_CURSOR_ALPHA		0x25c0	/* 32 words (32x32, 1bpp)  */
+#define VPRO_DBE_CURSOR_ALPHA		0x25c0	/* 64 words (32x32, 2bpp)  */
 
 #define VPRO_CURSOR_SIZE		32
-#define VPRO_CURSOR_GLYPH_WORDS		64	/* 2 words/row * 32 rows   */
-#define VPRO_CURSOR_ALPHA_WORDS		32	/* 1 word/row  * 32 rows   */
+#define VPRO_CURSOR_GLYPH_WORDS		128	/* 4 words/row * 32 rows   */
+#define VPRO_CURSOR_ALPHA_WORDS		64	/* 2 words/row * 32 rows   */
 #define VPRO_CURSOR_LUT_ENTRIES		15
 
 /* cursor_control: bit0 = delay_enable, bit1 = enable. */
