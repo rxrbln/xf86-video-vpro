@@ -427,7 +427,23 @@ vpro_drawpixels(unsigned long mmio, int x, int y, int w, int h,
 			l = ((i > 14) ? 14 : i);
 			i -= l;
 			VPRO_CFIFO_W(mmio) = (0x00014011 | (l << 10));
-			while (l--)
+			/*
+			 * Push the pixel payload two words at a time using
+			 * 64-bit CFIFO stores (ODY_CFIFO_D / IRIX by_64).  On
+			 * the big-endian XTalk fabric each uncached MMIO store
+			 * is expensive, so halving their count is a direct win
+			 * for large uploads.  The first-emitted word goes in
+			 * the high 32 bits (same convention as the DFIFO
+			 * writes in odyssey_dfifo_write).  Run length 14 is
+			 * even, so only a final short run leaves a tail word.
+			 */
+			while (l >= 2) {
+				VPRO_CFIFO_D(mmio) =
+					((CARD64)row[0] << 32) | row[1];
+				row += 2;
+				l -= 2;
+			}
+			if (l)
 				VPRO_CFIFO_W(mmio) = *(row++);
 		}
 	}
